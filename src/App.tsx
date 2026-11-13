@@ -69,7 +69,7 @@ function Today({ habits, today, onToggle, onOpen }: { habits: Habit[]; today: st
     <>
       <header className="flex items-center justify-between">
         <div>
-          <p className="text-sm capitalize text-dim">{date}</p>
+          <p className="text-sm text-dim first-letter:uppercase">{date}</p>
           <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight">Hoje</h1>
           <p className="mt-1 text-dim" aria-live="polite">{doneCount} de {due.length} feitos</p>
         </div>
@@ -105,7 +105,7 @@ function Row({ h, today, onToggle, onOpen }: { h: Habit; today: string; onToggle
         <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-moss-3 text-xl" aria-hidden="true">{h.emoji}</span>
         <span className="min-w-0">
           <span className={`block truncate font-bold ${done ? "text-dim line-through" : ""}`}>{h.name}</span>
-          <span className="text-sm text-dim">{current > 0 ? `🔥 ${current} ${current === 1 ? "dia" : "dias"} seguidos` : "comece hoje"}{h.reminder ? ` · ⏰ ${h.reminder}` : ""}</span>
+          <span className="text-sm text-dim">{current > 0 ? `🔥 ${current} ${current === 1 ? "dia seguido" : "dias seguidos"}` : "comece hoje"}{h.reminder ? ` · ⏰ ${h.reminder}` : ""}</span>
         </span>
       </button>
       <button

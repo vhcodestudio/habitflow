@@ -21,3 +21,5 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
 .sheet { animation: up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 @media (prefers-reduced-motion: reduce) { .pop, .sheet { animation: none; } }
+
+@media print { nav, dialog, button { display: none !important; } html, body { background: #fff; color: #000; } }

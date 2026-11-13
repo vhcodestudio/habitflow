@@ -10,6 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: "script-defer",
       includeAssets: ["favicon.svg", "apple-touch-icon-180x180.png"],
       manifest: {
         name: "habitflow",

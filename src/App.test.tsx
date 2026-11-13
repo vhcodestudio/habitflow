@@ -13,9 +13,9 @@ describe("App", () => {
     expect(localStorage.getItem("habitflow:v1")).toContain(new Date().toISOString().slice(0, 4));
   });
 
-  it("shows stats tab", () => {
+  it("shows stats tab", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Estatísticas" }));
-    expect(screen.getByRole("heading", { name: "Por dia da semana" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Por dia da semana" })).toBeInTheDocument();
   });
 });

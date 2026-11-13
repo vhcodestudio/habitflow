@@ -119,7 +119,7 @@ function Today({ habits, today, day, setDay, onToggle, onOpen }: {
     <>
       <header className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-dim first-letter:uppercase">{d.toLocaleDateString("pt-BR", { weekday: "long", month: "long" })}</p>
+          <p className="text-sm text-dim first-letter:uppercase">{d.toLocaleDateString("pt-BR", { weekday: "long" })} · {d.toLocaleDateString("pt-BR", { month: "long" })}</p>
           <h1 className="font-display text-[5.5rem] font-extrabold leading-[0.8] tracking-tighter">
             {d.getDate()}<span className="text-lime">.</span>
           </h1>

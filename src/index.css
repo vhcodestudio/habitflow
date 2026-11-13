@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-moss: #141a14;
+  --color-moss-2: #1d251d;
+  --color-moss-3: #2a352a;
+  --color-chalk: #e8e2cf;
+  --color-dim: #9ba393;
+  --color-lime: #d4f04a;
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
+  --font-sans: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+
+html, body { background: var(--color-moss); color: var(--color-chalk); font-family: var(--font-sans); }
+body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; }
+
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.pop { animation: pop 0.32s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes up { from { transform: translateY(100%); } to { transform: none; } }
+.sheet { animation: up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+@media (prefers-reduced-motion: reduce) { .pop, .sheet { animation: none; } }

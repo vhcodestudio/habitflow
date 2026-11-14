@@ -28,29 +28,44 @@ export default function App() {
   const add = (h: Habit) => { setHabits((all) => [...all, h]); setOpen(null); };
   const current = typeof open === "object" && open ? habits.find((h) => h.id === open.id) ?? null : null;
 
+  const wide = useWide();
+  const [celebrate, setCelebrate] = useState(0);
+
   function check(h: Habit) {
     const next = toggle(h, day);
     update(next);
     if (next.done.includes(day) && day === today) {
       const s = streaks(next, today).current;
       if (MILESTONES.includes(s)) setToast(`${s} dias seguidos de “${h.name}”. Isso já é rotina.`);
+      // Last habit of the day just got checked: celebrate.
+      const due = habits.map((x) => (x.id === h.id ? next : x)).filter((x) => scheduled(x, today));
+      if (due.length && due.every((x) => x.done.includes(today))) setCelebrate((c) => c + 1);
     }
   }
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col">
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col lg:max-w-6xl">
         <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-lime focus:px-3 focus:py-2 focus:text-moss">Pular para o conteúdo</a>
-        <main id="conteudo" className="flex-1 px-5 pb-36 pt-[max(env(safe-area-inset-top),1.25rem)]">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={tab} initial={{ opacity: 0, x: tab === "hoje" ? -motionTokens.distance.md : motionTokens.distance.md }}
-              animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: motionTokens.duration.fast }}>
-              {tab === "hoje"
-                ? <Today habits={habits} today={today} day={day} setDay={setDay} onToggle={check} onOpen={setOpen} />
-                : <Stats habits={habits} today={today} />}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+        <Confetti fire={celebrate} />
+        {wide ? (
+          // Desktop: both panels side by side, no tab switching needed.
+          <main id="conteudo" className="grid flex-1 grid-cols-[minmax(0,26rem)_minmax(0,1fr)] gap-12 px-8 pb-32 pt-10">
+            <Today habits={habits} today={today} day={day} setDay={setDay} onToggle={check} onOpen={setOpen} />
+            <div className="rounded-[2rem] border border-moss-3 bg-moss-2/40 p-8"><Stats habits={habits} today={today} /></div>
+          </main>
+        ) : (
+          <main id="conteudo" className="flex-1 px-5 pb-36 pt-[max(env(safe-area-inset-top),1.25rem)]">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div key={tab} initial={{ opacity: 0, x: tab === "hoje" ? -motionTokens.distance.md : motionTokens.distance.md }}
+                animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: motionTokens.duration.fast }}>
+                {tab === "hoje"
+                  ? <Today habits={habits} today={today} day={day} setDay={setDay} onToggle={check} onOpen={setOpen} />
+                  : <Stats habits={habits} today={today} />}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        )}
 
         <AnimatePresence>
           {toast && (
@@ -64,12 +79,12 @@ export default function App() {
 
         <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-10 pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto mb-3 grid max-w-[22rem] grid-cols-[1fr_auto_1fr] items-center rounded-full border border-moss-3 bg-moss-2/90 p-1.5 shadow-[0_10px_40px_rgba(0,0,0,.5)] backdrop-blur">
-            <NavBtn active={tab === "hoje"} onClick={() => setTab("hoje")}>Hoje</NavBtn>
+            {wide ? <span className="pl-4 text-sm font-bold text-dim">habitflow</span> : <NavBtn active={tab === "hoje"} onClick={() => setTab("hoje")}>Hoje</NavBtn>}
             <motion.button whileTap={{ scale: motionTokens.scale.press }} onClick={() => setOpen("new")} aria-label="Novo hábito"
               className="mx-2 grid size-12 place-items-center rounded-full bg-lime text-moss">
               <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
             </motion.button>
-            <NavBtn active={tab === "stats"} onClick={() => setTab("stats")}>Estatísticas</NavBtn>
+            {wide ? <span className="pr-4 text-right text-sm text-dim">novo hábito</span> : <NavBtn active={tab === "stats"} onClick={() => setTab("stats")}>Estatísticas</NavBtn>}
           </div>
         </nav>
 
@@ -427,5 +442,44 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
       </div>
       {children}
     </dialog>
+  );
+}
+
+function useWide() {
+  const q = "(min-width: 1024px)";
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setWide(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return wide;
+}
+
+const CONFETTI_COLORS = ["#d4f04a", "#e8e2cf", "#9ba393", "#ffffff"];
+
+/** Small confetti burst from the bottom center; re-fires whenever `fire` changes. */
+function Confetti({ fire }: { fire: number }) {
+  const [pieces, setPieces] = useState<{ id: number; x: number; y: number; r: number; c: string; d: number }[]>([]);
+  useEffect(() => {
+    if (!fire || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const batch = Array.from({ length: 36 }, (_, i) => ({
+      id: fire * 100 + i, x: (Math.random() - 0.5) * 520, y: -(220 + Math.random() * 380), r: (Math.random() - 0.5) * 720,
+      c: CONFETTI_COLORS[i % CONFETTI_COLORS.length], d: 0.9 + Math.random() * 0.6,
+    }));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- burst is triggered by a counter prop
+    setPieces(batch);
+    const t = setTimeout(() => setPieces([]), 1800);
+    return () => clearTimeout(t);
+  }, [fire]);
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed bottom-24 left-1/2 z-30">
+      {pieces.map((p) => (
+        <motion.span key={p.id} className="absolute block h-3 w-1.5 rounded-sm" style={{ background: p.c }}
+          initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }} animate={{ x: p.x, y: [0, p.y, p.y + 260], rotate: p.r, opacity: [1, 1, 0] }}
+          transition={{ duration: p.d * 1.6, ease: "easeOut" }} />
+      ))}
+    </div>
   );
 }

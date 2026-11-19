@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { addDays, dayKey, scheduled, type Habit } from "./lib/habits";
+import { detectLang, dicts } from "./i18n";
 
 const KEY = "habitflow:v1";
 
@@ -15,11 +16,12 @@ function seed(): Habit[] {
     }
     return { id, name, emoji, days, done, created: addDays(today, -70), reminder };
   };
+  const n = dicts[detectLang()].seed;
   return [
-    make("agua", "Beber 2 L de água", "💧", [0, 1, 2, 3, 4, 5, 6], 0.86, "09:00"),
-    make("ler", "Ler 20 páginas", "📖", [0, 1, 2, 3, 4, 5, 6], 0.7, "21:30"),
-    make("treino", "Treinar", "🏋️", [1, 3, 5], 0.8),
-    make("ingles", "Inglês no app", "🗣️", [1, 2, 3, 4, 5], 0.6),
+    make("agua", n[0], "💧", [0, 1, 2, 3, 4, 5, 6], 0.86, "09:00"),
+    make("ler", n[1], "📖", [0, 1, 2, 3, 4, 5, 6], 0.7, "21:30"),
+    make("treino", n[2], "🏋️", [1, 3, 5], 0.8),
+    make("ingles", n[3], "🗣️", [1, 2, 3, 4, 5], 0.6),
   ];
 }
 

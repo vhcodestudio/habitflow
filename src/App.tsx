@@ -3,13 +3,20 @@ import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { addDays, dayKey, parse, rate, scheduled, streaks, toggle, weekday, weekdayRates, type Habit } from "./lib/habits";
 import { useHabits, useReminders } from "./store";
 import { MILESTONES, motionTokens, springs } from "./motion";
+import { dicts, LangContext, langLabel, LANGS, useLangState, useT, type Lang } from "./i18n";
 
-const WD = ["D", "S", "T", "Q", "Q", "S", "S"];
-const WD_LONG = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+const SEED_IDS = ["agua", "ler", "treino", "ingles"];
 const EMOJIS = ["💧", "📖", "🏋️", "🧘", "🗣️", "🥗", "🛌", "✍️", "🚶", "🎸"];
 
 export default function App() {
+  const [lang, setLang] = useLangState();
+  const t = dicts[lang];
   const [habits, setHabits] = useHabits();
+  // Untouched example habits follow the chosen language.
+  useEffect(() => {
+    const names = new Set(Object.values(dicts).flatMap((d) => d.seed));
+    setHabits((all) => all.map((h) => { const i = SEED_IDS.indexOf(h.id); return i >= 0 && names.has(h.name) && h.name !== t.seed[i] ? { ...h, name: t.seed[i] } : h; }));
+  }, [t, setHabits]);
   const [tab, setTab] = useState<"hoje" | "stats">("hoje");
   const [open, setOpen] = useState<Habit | "new" | null>(null);
   const today = dayKey();
@@ -36,7 +43,7 @@ export default function App() {
     update(next);
     if (next.done.includes(day) && day === today) {
       const s = streaks(next, today).current;
-      if (MILESTONES.includes(s)) setToast(`${s} dias seguidos de “${h.name}”. Isso já é rotina.`);
+      if (MILESTONES.includes(s)) setToast(t.milestone(s, h.name));
       // Last habit of the day just got checked: celebrate.
       const due = habits.map((x) => (x.id === h.id ? next : x)).filter((x) => scheduled(x, today));
       if (due.length && due.every((x) => x.done.includes(today))) setCelebrate((c) => c + 1);
@@ -44,9 +51,11 @@ export default function App() {
   }
 
   return (
+    <LangContext.Provider value={{ lang, t, setLang }}>
     <MotionConfig reducedMotion="user">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col lg:max-w-6xl">
-        <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-lime focus:px-3 focus:py-2 focus:text-moss">Pular para o conteúdo</a>
+        <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-lime focus:px-3 focus:py-2 focus:text-moss">{t.skip}</a>
+        <LangPicker lang={lang} setLang={setLang} label={t.nav.language} />
         <Confetti fire={celebrate} />
         {wide ? (
           // Desktop: both panels side by side, no tab switching needed.
@@ -55,7 +64,7 @@ export default function App() {
             <div className="rounded-[2rem] border border-moss-3 bg-moss-2/40 p-8"><Stats habits={habits} today={today} /></div>
           </main>
         ) : (
-          <main id="conteudo" className="flex-1 px-5 pb-36 pt-[max(env(safe-area-inset-top),1.25rem)]">
+          <main id="conteudo" className="flex-1 px-5 pb-36 pt-4">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div key={tab} initial={{ opacity: 0, x: tab === "hoje" ? -motionTokens.distance.md : motionTokens.distance.md }}
                 animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: motionTokens.duration.fast }}>
@@ -77,18 +86,18 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-10 pb-[env(safe-area-inset-bottom)]">
+        <nav aria-label={t.nav.label} className="fixed inset-x-0 bottom-0 z-10 pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto mb-3 grid max-w-[22rem] grid-cols-[1fr_auto_1fr] items-center rounded-full border border-moss-3 bg-moss-2/90 p-1.5 shadow-[0_10px_40px_rgba(0,0,0,.5)] backdrop-blur">
-            {wide ? <span className="pl-4 text-sm font-bold text-dim">habitflow</span> : <NavBtn active={tab === "hoje"} onClick={() => setTab("hoje")}>Hoje</NavBtn>}
-            <motion.button whileTap={{ scale: motionTokens.scale.press }} onClick={() => setOpen("new")} aria-label="Novo hábito"
+            {wide ? <span className="pl-4 text-sm font-bold text-dim">habitflow</span> : <NavBtn active={tab === "hoje"} onClick={() => setTab("hoje")}>{t.nav.today}</NavBtn>}
+            <motion.button whileTap={{ scale: motionTokens.scale.press }} onClick={() => setOpen("new")} aria-label={t.nav.newHabit}
               className="mx-2 grid size-12 place-items-center rounded-full bg-lime text-moss">
               <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" /></svg>
             </motion.button>
-            {wide ? <span className="pr-4 text-right text-sm text-dim">novo hábito</span> : <NavBtn active={tab === "stats"} onClick={() => setTab("stats")}>Estatísticas</NavBtn>}
+            {wide ? <span className="pr-4 text-right text-sm text-dim">{t.nav.newSmall}</span> : <NavBtn active={tab === "stats"} onClick={() => setTab("stats")}>{t.nav.stats}</NavBtn>}
           </div>
         </nav>
 
-        {open === "new" && <Sheet title="Novo hábito" onClose={() => setOpen(null)}><Editor onSave={add} /></Sheet>}
+        {open === "new" && <Sheet title={t.nav.newHabit} onClose={() => setOpen(null)}><Editor onSave={add} /></Sheet>}
         {current && (
           <Sheet title={`${current.emoji} ${current.name}`} onClose={() => setOpen(null)}>
             <Detail h={current} today={today} onChange={update} onDelete={() => remove(current.id)} />
@@ -96,6 +105,20 @@ export default function App() {
         )}
       </div>
     </MotionConfig>
+    </LangContext.Provider>
+  );
+}
+
+function LangPicker({ lang, setLang, label }: { lang: Lang; setLang: (l: Lang) => void; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="ml-auto mr-4 mt-[max(env(safe-area-inset-top),0.75rem)] flex w-max gap-0.5 lg:mr-8 rounded-full border border-moss-3 bg-moss-2/90 p-1 text-[11px] font-bold uppercase backdrop-blur">
+      {LANGS.map((l) => (
+        <button key={l} type="button" onClick={() => setLang(l)} aria-pressed={l === lang} title={langLabel[l]} lang={l}
+          className={`min-h-8 min-w-8 rounded-full px-1.5 ${l === lang ? "bg-chalk text-moss" : "text-dim hover:text-chalk"}`}>
+          <span aria-hidden="true">{l}</span><span className="sr-only">{langLabel[l]}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -129,19 +152,20 @@ function Today({ habits, today, day, setDay, onToggle, onOpen }: {
   const isToday = day === today;
   const d = parse(day);
   const week = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
+  const t = useT();
 
   return (
     <>
       <header className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-dim first-letter:uppercase">{d.toLocaleDateString("pt-BR", { weekday: "long" })} · {d.toLocaleDateString("pt-BR", { month: "long" })}</p>
+          <p className="text-sm text-dim first-letter:uppercase">{d.toLocaleDateString(t.locale, { weekday: "long" })} · {d.toLocaleDateString(t.locale, { month: "long" })}</p>
           <h1 className="font-display text-[5.5rem] font-extrabold leading-[0.8] tracking-tighter">
             {d.getDate()}<span className="text-lime">.</span>
           </h1>
         </div>
         <div className="pb-1 text-right">
           <p className="font-display text-4xl font-extrabold leading-none"><Roll value={pct} />%</p>
-          <p className="mt-1 text-sm text-dim" aria-live="polite">{doneCount} de {due.length} {isToday ? "hoje" : "nesse dia"}</p>
+          <p className="mt-1 text-sm text-dim" aria-live="polite">{t.today.of(doneCount, due.length, isToday)}</p>
         </div>
       </header>
 
@@ -154,16 +178,16 @@ function Today({ habits, today, day, setDay, onToggle, onOpen }: {
         ))}
       </div>
 
-      <div role="group" aria-label="Escolher dia" className="mt-6 grid grid-cols-7 gap-1.5">
+      <div role="group" aria-label={t.today.pickDay} className="mt-6 grid grid-cols-7 gap-1.5">
         {week.map((k) => {
           const sel = k === day;
           const all = habits.filter((h) => scheduled(h, k));
           const r = all.length ? all.filter((h) => h.done.includes(k)).length / all.length : 0;
           return (
             <button key={k} onClick={() => setDay(k)} aria-pressed={sel}
-              aria-label={`${WD_LONG[weekday(k)]}, dia ${parse(k).getDate()}: ${Math.round(r * 100)}% feito`}
+              aria-label={t.today.dayLabel(t.wdLong[weekday(k)], parse(k).getDate(), Math.round(r * 100))}
               className={`relative flex flex-col items-center gap-1 rounded-2xl py-2 transition-colors ${sel ? "bg-chalk text-moss" : "text-dim hover:bg-moss-2"}`}>
-              <span className="text-[11px] font-bold">{WD[weekday(k)]}</span>
+              <span className="text-[11px] font-bold">{t.wd[weekday(k)]}</span>
               <span className="font-display text-lg font-bold leading-none">{parse(k).getDate()}</span>
               <span className={`size-1.5 rounded-full ${r === 1 ? "bg-lime" : r > 0 ? (sel ? "bg-moss/40" : "bg-dim/50") : "bg-transparent"}`} />
             </button>
@@ -172,8 +196,8 @@ function Today({ habits, today, day, setDay, onToggle, onOpen }: {
       </div>
       {!isToday && (
         <p className="mt-3 flex items-center justify-between rounded-xl bg-moss-2 px-3 py-2 text-sm text-dim">
-          Editando um dia anterior.
-          <button onClick={() => setDay(today)} className="font-bold text-lime">Voltar para hoje</button>
+          {t.today.past}
+          <button onClick={() => setDay(today)} className="font-bold text-lime">{t.today.back}</button>
         </p>
       )}
 
@@ -184,14 +208,14 @@ function Today({ habits, today, day, setDay, onToggle, onOpen }: {
       </ul>
       {due.length === 0 && (
         <div className="mt-10 rounded-3xl border border-dashed border-moss-3 p-8 text-center">
-          <p className="font-display text-2xl font-bold">Dia livre.</p>
-          <p className="mt-1 text-dim">Nenhum hábito agendado. Toque em + para criar um.</p>
+          <p className="font-display text-2xl font-bold">{t.today.free}</p>
+          <p className="mt-1 text-dim">{t.today.freeText}</p>
         </div>
       )}
 
       {habits.some((h) => !scheduled(h, day)) && (
         <div className="mt-8">
-          <p className="text-xs font-bold uppercase tracking-widest text-dim">Fora da agenda nesse dia</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-dim">{t.today.off}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {habits.filter((h) => !scheduled(h, day)).map((h) => (
               <button key={h.id} onClick={() => onOpen(h)} className="rounded-full border border-moss-3 px-3 py-1.5 text-sm text-dim hover:text-chalk">{h.emoji} {h.name}</button>
@@ -206,6 +230,7 @@ function Today({ habits, today, day, setDay, onToggle, onOpen }: {
 function Row({ h, today, day, onToggle, onOpen }: { h: Habit; today: string; day: string; onToggle: () => void; onOpen: () => void }) {
   const done = h.done.includes(day);
   const { current } = streaks(h, today);
+  const t = useT();
   return (
     <motion.li layout initial={{ opacity: 0, y: motionTokens.distance.sm }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
       transition={springs.snappy} className="relative overflow-hidden rounded-3xl border border-moss-3 bg-moss-2">
@@ -217,13 +242,13 @@ function Row({ h, today, day, onToggle, onOpen }: { h: Habit; today: string; day
           <span className="min-w-0">
             <span className="block truncate text-[1.05rem] font-bold">{h.name}</span>
             <span className={`flex items-center gap-1 text-sm ${done ? "text-moss/70" : "text-dim"}`}>
-              {current > 0 ? <><span aria-hidden="true">🔥</span><Roll value={current} /> {current === 1 ? "dia seguido" : "dias seguidos"}</> : "comece hoje"}
+              {current > 0 ? <><span aria-hidden="true">🔥</span><Roll value={current} /> {t.today.streak(current)}</> : t.today.start}
               {h.reminder && <span className="ml-1">· {h.reminder}</span>}
             </span>
           </span>
         </button>
         <motion.button whileTap={{ scale: motionTokens.scale.press }} onClick={() => { onToggle(); if (!done) navigator.vibrate?.(12); }}
-          aria-pressed={done} aria-label={`${done ? "Desmarcar" : "Marcar"} ${h.name}`}
+          aria-pressed={done} aria-label={t.today.check(done, h.name)}
           className={`grid size-14 shrink-0 place-items-center rounded-full border-2 transition-colors ${done ? "border-moss bg-moss text-lime" : "border-moss-3 text-dim hover:border-dim"}`}>
           <svg viewBox="0 0 24 24" className="size-7" aria-hidden="true">
             <motion.path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"
@@ -240,15 +265,16 @@ function Grid({ h, today, weeks = 12 }: { h: Habit; today: string; weeks?: numbe
   const start = addDays(end, -(weeks * 7 - 1));
   const cells = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
   const set = new Set(h.done);
+  const t = useT();
   return (
     <div>
-      <div className="grid grid-flow-col grid-rows-7 gap-1" role="img" aria-label={`Histórico das últimas ${weeks} semanas: ${h.done.filter((d) => d >= start).length} dias feitos`}>
+      <div className="grid grid-flow-col grid-rows-7 gap-1" role="img" aria-label={t.grid.label(weeks, h.done.filter((d) => d >= start).length)}>
         {cells.map((k, i) => (
           <motion.span key={k} initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.004, duration: motionTokens.duration.fast }}
             className={`aspect-square rounded-[4px] ${k > today ? "bg-transparent" : set.has(k) ? "bg-lime" : scheduled(h, k) ? "bg-moss-3" : "bg-moss-2"} ${k === today ? "ring-1 ring-chalk" : ""}`} />
         ))}
       </div>
-      <div className="mt-2 flex justify-between text-xs text-dim"><span>{weeks} semanas atrás</span><span>hoje</span></div>
+      <div className="mt-2 flex justify-between text-xs text-dim"><span>{t.grid.ago(weeks)}</span><span>{t.grid.now}</span></div>
     </div>
   );
 }
@@ -256,26 +282,27 @@ function Grid({ h, today, weeks = 12 }: { h: Habit; today: string; weeks?: numbe
 function Detail({ h, today, onChange, onDelete }: { h: Habit; today: string; onChange: (h: Habit) => void; onDelete: () => void }) {
   const s = streaks(h, today);
   const [confirming, setConfirming] = useState(false);
+  const t = useT();
   return (
     <div className="space-y-7">
       <div className="grid grid-cols-3 gap-2 text-center">
-        <Stat label="sequência" value={<Roll value={s.current} />} accent />
-        <Stat label="recorde" value={s.best} />
-        <Stat label="30 dias" value={`${Math.round(rate(h, today, 30) * 100)}%`} />
+        <Stat label={t.detail.streak} value={<Roll value={s.current} />} accent />
+        <Stat label={t.detail.best} value={s.best} />
+        <Stat label={t.detail.d30} value={`${Math.round(rate(h, today, 30) * 100)}%`} />
       </div>
-      {s.best > 0 && s.current < s.best && <p className="text-sm text-dim">Faltam {s.best - s.current} dias para igualar seu recorde.</p>}
+      {s.best > 0 && s.current < s.best && <p className="text-sm text-dim">{t.detail.toBest(s.best - s.current)}</p>}
       <Grid h={h} today={today} />
       <Editor initial={h} onSave={onChange} />
       {confirming ? (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-moss-3 p-3 text-sm" role="alertdialog" aria-label="Confirmar exclusão">
-          <span>Apagar o hábito e todo o histórico?</span>
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-moss-3 p-3 text-sm" role="alertdialog" aria-label={t.detail.confirm}>
+          <span>{t.detail.ask}</span>
           <span className="flex gap-2">
-            <button onClick={() => setConfirming(false)} className="rounded-full px-3 py-2 text-dim">Cancelar</button>
-            <button onClick={onDelete} className="rounded-full bg-chalk px-3 py-2 font-bold text-moss">Apagar</button>
+            <button onClick={() => setConfirming(false)} className="rounded-full px-3 py-2 text-dim">{t.detail.cancel}</button>
+            <button onClick={onDelete} className="rounded-full bg-chalk px-3 py-2 font-bold text-moss">{t.detail.del}</button>
           </span>
         </div>
       ) : (
-        <button onClick={() => setConfirming(true)} className="w-full py-3 text-sm text-dim underline">Apagar hábito</button>
+        <button onClick={() => setConfirming(true)} className="w-full py-3 text-sm text-dim underline">{t.detail.delHabit}</button>
       )}
     </div>
   );
@@ -297,6 +324,7 @@ function Editor({ initial, onSave }: { initial?: Habit; onSave: (h: Habit) => vo
   const [reminder, setReminder] = useState(initial?.reminder ?? "");
   const [perm, setPerm] = useState(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
   const [saved, setSaved] = useState(false);
+  const t = useT();
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -306,26 +334,26 @@ function Editor({ initial, onSave }: { initial?: Habit; onSave: (h: Habit) => vo
     if (initial) { setSaved(true); setTimeout(() => setSaved(false), 1500); }
   }
 
-  const presets: [string, number[]][] = [["Todo dia", [0, 1, 2, 3, 4, 5, 6]], ["Dias úteis", [1, 2, 3, 4, 5]], ["Fim de semana", [0, 6]]];
+  const presets: [string, number[]][] = [[t.editor.presets[0], [0, 1, 2, 3, 4, 5, 6]], [t.editor.presets[1], [1, 2, 3, 4, 5]], [t.editor.presets[2], [0, 6]]];
 
   return (
     <form onSubmit={save} className="space-y-6">
       <label className="block">
-        <span className="text-sm font-bold text-dim">Nome</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} placeholder="Ex.: Caminhar 15 min"
+        <span className="text-sm font-bold text-dim">{t.editor.name}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} placeholder={t.editor.placeholder}
           className="mt-1.5 w-full rounded-2xl border border-moss-3 bg-moss-2 px-4 py-3.5 text-base placeholder:text-dim/60 focus:border-lime" />
       </label>
       <fieldset>
-        <legend className="text-sm font-bold text-dim">Ícone</legend>
+        <legend className="text-sm font-bold text-dim">{t.editor.icon}</legend>
         <div className="mt-2 grid grid-cols-5 gap-2">
           {EMOJIS.map((em) => (
-            <button type="button" key={em} onClick={() => setEmoji(em)} aria-pressed={emoji === em} aria-label={`Ícone ${em}`}
+            <button type="button" key={em} onClick={() => setEmoji(em)} aria-pressed={emoji === em} aria-label={`${t.editor.icon} ${em}`}
               className={`aspect-square rounded-2xl text-2xl transition-colors ${emoji === em ? "bg-lime" : "bg-moss-2 hover:bg-moss-3"}`}>{em}</button>
           ))}
         </div>
       </fieldset>
       <fieldset>
-        <legend className="text-sm font-bold text-dim">Dias</legend>
+        <legend className="text-sm font-bold text-dim">{t.editor.days}</legend>
         <div className="mt-2 flex flex-wrap gap-2">
           {presets.map(([label, p]) => (
             <button type="button" key={label} onClick={() => setDays(p)}
@@ -334,22 +362,22 @@ function Editor({ initial, onSave }: { initial?: Habit; onSave: (h: Habit) => vo
           ))}
         </div>
         <div className="mt-2 grid grid-cols-7 gap-1.5">
-          {WD.map((d, i) => (
-            <button type="button" key={i} aria-pressed={days.includes(i)} aria-label={WD_LONG[i]}
+          {t.wd.map((d, i) => (
+            <button type="button" key={i} aria-pressed={days.includes(i)} aria-label={t.wdLong[i]}
               onClick={() => setDays((ds) => (ds.includes(i) ? ds.filter((x) => x !== i) : [...ds, i]))}
               className={`h-12 rounded-2xl font-bold transition-colors ${days.includes(i) ? "bg-chalk text-moss" : "bg-moss-2 text-dim"}`}>{d}</button>
           ))}
         </div>
       </fieldset>
       <label className="block">
-        <span className="text-sm font-bold text-dim">Lembrete (opcional)</span>
+        <span className="text-sm font-bold text-dim">{t.editor.reminder}</span>
         <input type="time" value={reminder} onChange={(e) => setReminder(e.target.value)}
           className="mt-1.5 w-full rounded-2xl border border-moss-3 bg-moss-2 px-4 py-3.5 text-base [color-scheme:dark]" />
-        {reminder && perm === "denied" && <span className="mt-1 block text-sm text-dim">As notificações estão bloqueadas no navegador.</span>}
-        {reminder && perm === "unsupported" && <span className="mt-1 block text-sm text-dim">Este navegador não suporta notificações.</span>}
+        {reminder && perm === "denied" && <span className="mt-1 block text-sm text-dim">{t.editor.blocked}</span>}
+        {reminder && perm === "unsupported" && <span className="mt-1 block text-sm text-dim">{t.editor.unsupported}</span>}
       </label>
       <motion.button whileTap={{ scale: 0.98 }} className="w-full rounded-2xl bg-lime py-4 font-display text-lg font-extrabold text-moss disabled:opacity-40" disabled={!name.trim() || !days.length}>
-        {saved ? "Salvo ✓" : initial ? "Salvar alterações" : "Criar hábito"}
+        {saved ? t.editor.saved : initial ? t.editor.save : t.editor.create}
       </motion.button>
     </form>
   );
@@ -364,9 +392,10 @@ function Heatmap({ habits, today, weeks = 15 }: { habits: Habit[]; today: string
     if (!due.length || k > today) return -1;
     return due.filter((h) => h.done.includes(k)).length / due.length;
   };
+  const t = useT();
   const shade = (v: number) => (v < 0 ? "bg-transparent" : v === 0 ? "bg-moss-3/60" : v < 0.5 ? "bg-lime/30" : v < 1 ? "bg-lime/65" : "bg-lime");
   return (
-    <div className="grid grid-flow-col grid-rows-7 gap-[3px]" role="img" aria-label={`Mapa de conclusão das últimas ${weeks} semanas`}>
+    <div className="grid grid-flow-col grid-rows-7 gap-[3px]" role="img" aria-label={t.stats.mapLabel(weeks)}>
       {cells.map((k) => <span key={k} title={k} className={`aspect-square rounded-[3px] ${shade(level(k))}`} />)}
     </div>
   );
@@ -378,46 +407,47 @@ function Stats({ habits, today }: { habits: Habit[]; today: string }) {
   const overall = ranked.length ? ranked.reduce((a, x) => a + x.r, 0) / ranked.length : 0;
   const bestDay = wr.indexOf(Math.max(...wr));
   const worstDay = wr.indexOf(Math.min(...wr));
+  const t = useT();
   return (
     <>
-      <p className="text-sm text-dim">Últimos 30 dias</p>
-      <h1 className="font-display text-5xl font-extrabold leading-none tracking-tight">Estatísticas</h1>
+      <p className="text-sm text-dim">{t.stats.last30}</p>
+      <h1 className="font-display text-5xl font-extrabold leading-none tracking-tight">{t.stats.title}</h1>
 
       <div className="mt-6 rounded-3xl bg-lime p-5 text-moss">
-        <p className="text-sm font-bold opacity-70">Conclusão geral</p>
+        <p className="text-sm font-bold opacity-70">{t.stats.overall}</p>
         <p className="font-display text-7xl font-extrabold leading-none tracking-tighter">{Math.round(overall * 100)}%</p>
-        <p className="mt-2 text-sm font-bold">Maior sequência ativa: {Math.max(0, ...ranked.map((x) => x.s.current))} dias</p>
+        <p className="mt-2 text-sm font-bold">{t.stats.bestActive(Math.max(0, ...ranked.map((x) => x.s.current)))}</p>
       </div>
 
       <section className="mt-8" aria-labelledby="map">
-        <h2 id="map" className="font-display text-xl font-bold">Últimas 15 semanas</h2>
+        <h2 id="map" className="font-display text-xl font-bold">{t.stats.weeks}</h2>
         <div className="mt-3"><Heatmap habits={habits} today={today} /></div>
         <div className="mt-2 flex items-center justify-end gap-1 text-xs text-dim" aria-hidden="true">
-          menos <span className="size-3 rounded-[3px] bg-moss-3/60" /><span className="size-3 rounded-[3px] bg-lime/30" /><span className="size-3 rounded-[3px] bg-lime/65" /><span className="size-3 rounded-[3px] bg-lime" /> mais
+          {t.stats.less} <span className="size-3 rounded-[3px] bg-moss-3/60" /><span className="size-3 rounded-[3px] bg-lime/30" /><span className="size-3 rounded-[3px] bg-lime/65" /><span className="size-3 rounded-[3px] bg-lime" /> {t.stats.more}
         </div>
       </section>
 
       <section className="mt-8" aria-labelledby="wd">
-        <h2 id="wd" className="font-display text-xl font-bold">Por dia da semana</h2>
-        <p className="text-sm text-dim">Você vai melhor na {WD_LONG[bestDay]} e tropeça mais no {WD_LONG[worstDay]}.</p>
+        <h2 id="wd" className="font-display text-xl font-bold">{t.stats.byDay}</h2>
+        <p className="text-sm text-dim">{t.stats.byDayText(t.wdLong[bestDay], t.wdLong[worstDay])}</p>
         <div className="mt-4 flex h-40 items-end gap-2">
           {wr.map((v, i) => (
             <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
               <span className="text-xs tabular-nums text-dim">{Math.round(v * 100)}</span>
               <motion.div className={`w-full origin-bottom rounded-t-lg ${i === bestDay ? "bg-lime" : "bg-moss-3"}`} style={{ height: `${Math.max(v * 100, 4)}%` }}
                 initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ ...springs.gentle, delay: i * 0.04 }} />
-              <span className="text-xs font-bold text-dim" aria-label={WD_LONG[i]}>{WD[i]}</span>
+              <span className="text-xs font-bold text-dim" aria-label={t.wdLong[i]}>{t.wd[i]}</span>
             </div>
           ))}
         </div>
       </section>
 
       <section className="mt-8" aria-labelledby="rank">
-        <h2 id="rank" className="font-display text-xl font-bold">Hábitos</h2>
+        <h2 id="rank" className="font-display text-xl font-bold">{t.stats.habits}</h2>
         <ol className="mt-3 space-y-4">
           {ranked.map(({ h, r, s }) => (
             <li key={h.id}>
-              <div className="flex justify-between text-sm"><span className="font-bold">{h.emoji} {h.name}</span><span className="tabular-nums text-dim">{Math.round(r * 100)}% · recorde {s.best}</span></div>
+              <div className="flex justify-between text-sm"><span className="font-bold">{h.emoji} {h.name}</span><span className="tabular-nums text-dim">{Math.round(r * 100)}% · {t.stats.record} {s.best}</span></div>
               <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-moss-3">
                 <motion.div className="h-full origin-left rounded-full bg-lime" style={{ width: `${r * 100}%` }} initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={springs.gentle} />
               </div>
@@ -432,13 +462,14 @@ function Stats({ habits, today }: { habits: Habit[]; today: string }) {
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { ref.current?.showModal(); }, []);
+  const t = useT();
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => e.target === ref.current && onClose()} aria-label={title}
       className="sheet m-0 mt-auto max-h-[92dvh] w-full max-w-none overflow-y-auto rounded-t-[2rem] border-t border-moss-3 bg-moss px-5 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-3 text-chalk backdrop:bg-black/70 backdrop:backdrop-blur-sm sm:mx-auto sm:max-w-md">
       <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-moss-3" aria-hidden="true" />
       <div className="mb-6 flex items-center justify-between gap-3">
         <h2 className="truncate font-display text-2xl font-extrabold">{title}</h2>
-        <button onClick={onClose} className="shrink-0 rounded-full bg-moss-2 px-4 py-2 text-sm font-bold">Fechar</button>
+        <button onClick={onClose} className="shrink-0 rounded-full bg-moss-2 px-4 py-2 text-sm font-bold">{t.close}</button>
       </div>
       {children}
     </dialog>
